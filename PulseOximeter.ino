@@ -2,22 +2,28 @@
 
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2); 
 int pulseSpike = 0;
-int pulseThreshold = 3.0; //to be determined by oscilliscope
+int pulseThreshold = 2.0; //to be determined by oscilliscope
+int ledPin = 0;
+int irPin = 1;
+int switchPin = 2;
+int count = 0;
 float recordTime[150] = {0};
 float BPM = 0;
-int counter = 0;
-boolean above = false, below = false;
+unsigned long previousMillis = 0;        
+const long interval = 1000;    
+boolean above = false, below = false;       
 
-void setup(){
+void setup() {
 	lcd.begin(16, 2);
+	Serial.begin(9600);
 }
 
-void loop(){
-	float pushButton = analogRead(A0) * (5.0/1023.0);
-	float pulseSignal = analogRead(A0) * (5.0/1023.0);
+void loop() {
+	float startSwitch = analogRead(switchPin) * (5.0/1023.0);
+	float pulseSignal = analogRead(ledPin) * (5.0/1023.0);
 
-	// Stop recording
-	if (pushButton < 3){
+	// Initialization
+	if (startSwitch < 3) {
 		counter = 0;
 		lcd.setCursor(0, 0);
 		lcd.print("Insert finger & ");
@@ -26,59 +32,111 @@ void loop(){
 	} 
 
 	// Start recording
-	else if ((pushButton >= 3) && (counter < 61)){
+	else if ((startSwitch >= 3) && (count < 61)) {
 		// timer for recording, stops at 60 seconds  
-		for (int counter = 0; counter < 61; counter++){      
-			delay(1000); 
-			float pushButton = analogRead(A0) * (5.0/1023.0);
+		while (count < 61) {   
+			float startSwitch = analogRead(0) * (5.0/1023.0);
+			timer(); // Start timer  
+			recordData(); // Start recording data
+			// Checking for pulse spikes
+			if (pulseSignal > pulseThreshold) {
+				above = true;
+				float pulseSignal = analogRead(ledPin) * (5.0/1023.0);
+				if (pulseSignal < pulseThreshold) {
+					below = true;
+				}
+			}
+			// Display
 			lcd.setCursor(0, 0);
 			lcd.print("Recording..     ");  
 			lcd.setCursor(14, 0);
-			lcd.print(counter);
+			lcd.print(count);
 			lcd.setCursor(0, 1);
 			lcd.print("Pulse: ");
-			// if switch is depressed, break out of recording
-			if (pushButton < 3){ 
+			lcd.setCursor(7, 1);
+			lcd.print(checkPulse(above, below));
+			// Stops recording
+			if (startSwitch < 3) { 
 				break;
 			}    
 		} 
 	}
 
-	// if done recording, stop
-	else{   
+	// If done recording, stop
+	else {   
 		lcd.setCursor(0, 0);
 		lcd.print("Done recording. "); 
 		lcd.setCursor(0, 1);
 		lcd.print("                "); 
 	}
-
-	// Checking for pulse spikes
-	if (pulseSignal > pulseThreshold){
-		float pulseSignal = analogRead(A0) * (5.0/1023.0);
-		above = true;
-		if (pulseSignal < pulseThreshold){
-			below = true;
-		}
-	}
-
-	// Calculate pulse rate
-	if (above && below){
-		above = false;
-		below = false;
-		recordTime[pulseSpike] = float(millis() / 1000.00);
-		BPM = calcPulse(pulseSpike, recordTime);       
-		pulseSpike++;
-	}
 }
 
 // Function to calculate pulse rate
-float calcPulse(int x, float arr[]){
-	float avg = 0;
+float calcPulse(int x, float arr[]) {
+	float avg = 1;
 	float sum = 0;
-	for (int i = 1; i < x; i++) {
-		sum += arr[i] - arr[i-1];
+	if (x > 1) {
+		for (int i = 1; i < x; i++) {
+			sum += arr[i] - arr[i-1];
+		}
 	}
 	avg = (sum / x);
-	return avg*60; 
+	return 60/avg; 
 }
 
+//Function to check if pulse spike accured
+float checkPulse(boolean a, boolean b) {
+	if (a && b){
+		above = false;
+		below = false;  
+		recordTime[pulseSpike] = float(millis() / 1000.00);
+		BPM = calcPulse(pulseSpike, recordTime);       
+		pulseSpike++;
+		lcd.setCursor(0, 1);
+		lcd.print("Pulse:          ");
+		lcd.setCursor(7, 1);
+		lcd.print(BPM);
+	}
+}
+
+// Function to record and store data file
+void recordData() {
+	String dataString = "";
+	// Record Time,Voltage; new line
+	for (int analogPin = 0; analogPin < 2; analogPin++) { 
+		float sensor = analogRead(0) * (5.0/1023.0);
+		dataString += (millis() / 1000.00);
+		dataString += ",";
+		dataString += String(sensor);
+		dataString += ";"; 
+		if (analogPin == 0) {
+			dataString += "\n";
+		}
+	}
+	Serial.println(dataString);
+
+	File dataFile = SD.open("datalog.txt", FILE_WRITE);
+	
+	if (dataFile) {
+		dataFile.println(dataString);
+		dataFile.close();
+		Serial.println(dataString);
+	}
+
+	else {
+		lcd.setCursor(0, 0);
+		lcd.print("ERROR Could not "); 
+		lcd.setCursor(0, 1);
+		lcd.print("open file       "); 
+		Serial.println("error opening datalog.txt");
+	}
+}
+
+// Simple timer function
+void timer() {
+	unsigned long currentMillis = millis(); 
+	if (currentMillis - previousMillis >= interval) {
+		previousMillis = currentMillis;
+		count+=1;
+	}
+}
