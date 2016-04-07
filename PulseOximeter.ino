@@ -24,8 +24,8 @@ void loop() {
 
 	// Initialization
 	if (startSwitch < 3) {
-		counter = 0;
-		recordTime[200] = {0};
+		count = 0; // reset count
+		recordTime[200] = {0}; // reset recorded time
 		lcd.setCursor(0, 0);
 		lcd.print("Insert finger & ");
 		lcd.setCursor(0, 1);
@@ -73,7 +73,7 @@ void loop() {
 float calcPulse(int x, float arr[]) {
 	float avg = 1;
 	float sum = 0;
-	if (x > 1) {
+	if (x > 0) {
 		for (int i = 1; i < x; i++) {
 			sum += arr[i] - arr[i-1];
 		}
@@ -118,7 +118,6 @@ void recordData() {
 	if (dataFile) {
 		dataFile.println(dataString);
 		dataFile.close();
-		Serial.println(dataString);
 	}
 
 	else {
@@ -126,7 +125,6 @@ void recordData() {
 		lcd.print("ERROR Could not "); 
 		lcd.setCursor(0, 1);
 		lcd.print("open file       "); 
-		Serial.println("error opening datalog.txt");
 	}
 }
 
