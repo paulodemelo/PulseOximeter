@@ -7,7 +7,7 @@ int ledPin = 0;
 int irPin = 1;
 int switchPin = 2;
 int count = 0;
-float recordTime[150] = {0};
+float recordTime[200] = {0};
 float BPM = 0;
 unsigned long previousMillis = 0;        
 const long interval = 1000;    
@@ -25,6 +25,7 @@ void loop() {
 	// Initialization
 	if (startSwitch < 3) {
 		counter = 0;
+		recordTime[200] = {0};
 		lcd.setCursor(0, 0);
 		lcd.print("Insert finger & ");
 		lcd.setCursor(0, 1);
@@ -51,10 +52,7 @@ void loop() {
 			lcd.print("Recording..     ");  
 			lcd.setCursor(14, 0);
 			lcd.print(count);
-			lcd.setCursor(0, 1);
-			lcd.print("Pulse: ");
-			lcd.setCursor(7, 1);
-			lcd.print(checkPulse(above, below));
+			checkPulse(above, below);
 			// Stops recording
 			if (startSwitch < 3) { 
 				break;
@@ -85,7 +83,7 @@ float calcPulse(int x, float arr[]) {
 }
 
 //Function to check if pulse spike accured
-float checkPulse(boolean a, boolean b) {
+void checkPulse(boolean a, boolean b) {
 	if (a && b){
 		above = false;
 		below = false;  
@@ -104,7 +102,7 @@ void recordData() {
 	String dataString = "";
 	// Record Time,Voltage; new line
 	for (int analogPin = 0; analogPin < 2; analogPin++) { 
-		float sensor = analogRead(0) * (5.0/1023.0);
+		float sensor = analogRead(0) * (5.0/1023.0); //change back to analogPin *******
 		dataString += (millis() / 1000.00);
 		dataString += ",";
 		dataString += String(sensor);
