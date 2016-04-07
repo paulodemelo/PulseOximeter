@@ -7,7 +7,7 @@ int ledPin = 0;
 int irPin = 1;
 int switchPin = 2;
 int count = 0;
-float recordTime[200] = {0};
+float recordTime[200] = {0}; 
 float BPM = 0;
 unsigned long previousMillis = 0;        
 const long interval = 1000;    
@@ -94,6 +94,10 @@ void checkPulse(boolean a, boolean b) {
 		lcd.print("Pulse:          ");
 		lcd.setCursor(7, 1);
 		lcd.print(BPM);
+		if (pulseSpike == 200) { // Just in case array gets filled
+			pulseSpike = 0;  
+			float recordTime[200] = {0} 
+		}
 	}
 }
 
