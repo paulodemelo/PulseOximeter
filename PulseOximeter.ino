@@ -1,21 +1,27 @@
 #include <LiquidCrystal.h>
+#include <SPI.h>
+#include <SD.h>
 
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2); 
+const int chipSelect = 10;
+
+LiquidCrystal lcd(A3, 9, 5, 4, 3, 2); 
 int pulseSpike = 0;
-int pulseThreshold = 1.5; //to be determined by oscilliscope
+int pulseThreshold = 1.0; //to be determined by oscilliscope
 int ledPin = 0;
 int irPin = 1;
 int switchPin = 2;
 int count = 0;
-float recordTime[200] = {0}; 
+float recordTime[100] = {0}; 
 int BPM = 0;
 unsigned long previousMillis = 0;
 const long interval = 1000;    
 boolean above = false, below = false;       
 
 void setup() {
-	lcd.begin(16, 2);
+    pinMode(A3, OUTPUT);
+    digitalWrite(A3, HIGH);
 	Serial.begin(9600);
+    lcd.begin(16, 2);
 }
 
 void loop() {
@@ -27,7 +33,7 @@ void loop() {
 		count = 0; // reset count
 		recordTime[200] = {0}; // reset recorded time
 		lcd.setCursor(0, 0);
-		lcd.print("Insert finger & ");
+		lcd.print("Place finger &  ");
 		lcd.setCursor(0, 1);
 		lcd.print("flip switch     ");  
 	} 
@@ -68,13 +74,13 @@ float calcPulse(int x, float arr[]) {
     float avg = 1;
     float sum = 0;
     float last = 0;
-    if (x > 1) {
-        for (int i = 1; i < x; i++) {
+    if (x > 4) {
+        for (int i = x - 5; i < x; i++) { // Summing last 5 values
             sum += arr[i] - arr[i-1];
         }
     }
     last = arr[x] - arr[x-1]; // just displays last pulse
-    avg=sum/x;
+    avg=sum/5;
     return 60/avg; 
 }
 
@@ -90,8 +96,8 @@ int checkPulse(boolean a, boolean b) {
         lcd.print("Pulse:          ");
         lcd.setCursor(7, 1);
         lcd.print(BPM);
-        if (pulseSpike == 199) { // Just in case array gets filled
-            float recordTime[200] = {0};
+        if (pulseSpike == 99) { // Just in case array gets filled
+            float recordTime[100] = {0};
             pulseSpike = 0;
         }
     }
@@ -102,9 +108,9 @@ void recordData() {
     // Calibration test.. wait for at least 5 spikes to start recording
     if (pulseSpike > 4) { 
     	String dataString = "";
-    	// Record Time,Voltage; new line
+    	// Record [LEDTime,LEDVoltage,IRTime,IRVoltage] 
     	for (int analogPin = 0; analogPin < 2; analogPin++) { 
-    		float sensor = analogRead(0) * (5.0/1023.0); //change back to analogPin *******
+    		float sensor = analogRead(analogPin) * (5.0/1023.0); 
     		dataString += (millis() / 1000.00);
     		dataString += ",";
     		dataString += String(sensor);
@@ -118,6 +124,20 @@ void recordData() {
         lcd.print("Recording...    ");  
         lcd.setCursor(14, 0);
         lcd.print(count);
+        
+        File dataFile = SD.open("datalog.csv", FILE_WRITE);
+        if (dataFile) {
+            dataFile.println(dataString);
+            dataFile.close();
+        }
+
+        else {
+            lcd.setCursor(0, 0);
+            lcd.print("ERROR Could not "); 
+            lcd.setCursor(0, 1);
+            lcd.print("open file       "); 
+        }
+        
     }
     else
     {
@@ -126,20 +146,6 @@ void recordData() {
         lcd.setCursor(0, 0);
         lcd.print("Calibrating...  ");   
     }
-
-//	File dataFile = SD.open("datalog.txt", FILE_WRITE);
-//	
-//	if (dataFile) {
-//		dataFile.println(dataString);
-//		dataFile.close();
-//	}
-//
-//	else {
-//		lcd.setCursor(0, 0);
-//		lcd.print("ERROR Could not "); 
-//		lcd.setCursor(0, 1);
-//		lcd.print("open file       "); 
-//	}
 }
 
 // Simple timer function
